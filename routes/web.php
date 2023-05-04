@@ -18,5 +18,5 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
-Route::get('/test', [ShippingIntegrationController::class, 'test'])
+Route::get('/test', [ShippingIntegrationController::class, 'createShipping'])
 ->name('test');

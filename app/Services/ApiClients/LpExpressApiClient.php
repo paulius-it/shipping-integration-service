@@ -11,13 +11,13 @@ class LpExpressApiClient
     private const baseApiUrl = 'https://api-manosiuntostst.post.lt/';
     private string $provider;
     private string $accessToken;
-    private Response $apiCallResult;
+    public Response $apiCallResult;
     private bool $successful = false;
-    private string $authServiceEndpoint = 'localhost/api';
+    private string $authServiceEndpoint = '127.0.0.1:8002/api';
     private bool $shouldAuthenticate = false;
     private string $requestPath;
 
-    public function __construct(private BaseApiService $base)
+    public function __construct()
     {
         $this->provider = 'lp_express';
     }
@@ -25,21 +25,25 @@ class LpExpressApiClient
     public function authorizeClient(): self
     {
         try {
-            $this->accessToken = Http::get($this->authServiceEndpoint . '/get-api-credentials', [
+            $response = Http::get($this->authServiceEndpoint . '/get-api-credentials', [
                 'provider' => $this->provider,
             ]);
+            $this->accessToken = $response->json('lp_express_access_token') ?? '';
         } catch (\Exception $e) {
             $this->shouldAuthenticate = true;
         }
 
         if ($this->shouldAuthenticate) {
-            $providers['{$this->provider}'] = true;
+            $providers['lp_express'] = true;
             try {
                 $response = Http::post($this->authServiceEndpoint . '/authenticate-provider', [
                     'providers' => $providers,
                     'cache' => true,
                 ]);
-                $this->accessToken = $response->json('access_token');
+                $response = $response->json();
+                dd($response);
+                $this->accessToken = $response['lp_api_response']['access_token'];
+                dd($this->accessToken);
                 $this->shouldAuthenticate = false;
                 $this->successful = true;
             } catch (\Exception $e) {
@@ -62,12 +66,13 @@ class LpExpressApiClient
      */
     public function processRequest(
         ?string $type = null,
+        ?string $requestPath = null,
         array $requestData,
         bool $log = false
-    ): self {
+    ): Response {
         $this->authorizeClient();
 
-        $url = $this->lpEndpoint . $this->requestPath;
+        $url = self::baseApiUrl . $requestPath;
 
         try {
             switch ($type) {
@@ -93,7 +98,10 @@ class LpExpressApiClient
         } catch (\Exception $e) {
             throw new LpExpressAPIException('Api call failed: ' . $e->getMessage());
         }
+
+        return $this->apiCallResult;
     }
+
 
     public function creatShippingItem(array $data): array
     {
@@ -114,7 +122,7 @@ class LpExpressApiClient
         }
         $response = [
             'success' => true,
-            'message' => 'Shipment created',
+            'message' => $this->apiCallResult,
         ];
         return $response;
     }
