@@ -2,27 +2,83 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\ApiClients\LpExpressApiClient;
+use App\Services\ShippingIntegrationService;
 use Illuminate\Http\Request;
+
+/**
+ * Class responsible for handleing which Shipping elements are used in the request
+ * @param Request $request
+ * @return JsonResponse actual API response
+ */
 
 class ShippingIntegrationController extends Controller
 {
-    public function __construct(private LpExpressApiClient $lpExpress)
+
+    public function __construct(private ShippingIntegrationService $service)
     {
     }
 
-    public function createShipping(Request $shippingData)
+    /**
+     * Creates shipping item using the requested carrier
+     * @param Request $shippingData: shipping item information
+     */
+    public function createShipping(Request $request)
     {
-        $provider = $shippingData->input('provider');
-        $provider = 'lp_express';
-        $requestPath = $shippingData->input('request_path');
-        $requestPath = 'api/v1/shipping';
-        $type = $shippingData->input('type');
-        $type = 'post';
-        $requestData = json_decode($shippingData->input('request_data'), true);
-        $requestData = json_decode('{"receiver": { "address" : { "apartment": "5", "building": "20", "country": "LT", "locality": "Vilnius", "postalCode": "10200", "street":"Gedimino pr." }, "email": "test@post.lt", "name": "Test1", "phone": "37064155444", "terminalId": "5101" }, "template": "54", "partCount": "1"}', true);
+        $shippingData = $request->all();
+        $result = $this->service->sendApiRequest($request, endpointPath: 'shipping.create');
+        return $result;
+    }
 
-        $result = $this->lpExpress->processRequest($type, $requestPath, $requestData);
+    /**
+     * Gets shipping item using the requested carrier
+     * @param Request $shippingData: shipping item information
+     */
+    public function getShipping(Request $request)
+    {
+        $shippingData = $request->all();
+        $result = $this->service->sendApiRequest($request, endpointPath: 'shipping.get');
+        return $result;
+    }
+
+    public function updateShipping(Request $request)
+    {
+        $shippingData = $request->all();
+        $result = $this->service->sendApiRequest($request, endpointPath: 'shipping.update');
+        return $result;
+    }
+
+    public function deleteShipping(Request $request)
+    {
+        $shippingData = $request->all();
+        $result = $this->service->sendApiRequest($request, endpointPath: 'shipping.delete');
+        return $result;
+    }
+
+    public function shippingTracking(Request $request)
+    {
+        $shippingData = $request->all();
+        $result = $this->service->sendApiRequest($request, endpointPath: 'shipping.track');
+        return $result;
+    }
+
+    public function callCourier(Request $request)
+    {
+        $shippingData = $request->all();
+        $result = $this->service->sendApiRequest($request, endpointPath: 'shipping.call-courier');
+        return $result;
+    }
+
+    public function downloadLabels(Request $request)
+    { // Method for Omniva only to receive labels in PDF
+        $shippingData = $request->all();
+        $result = $this->service->sendApiRequest($request, endpointPath: 'shipping.download-labels');
+        return $result;
+    }
+
+    public function downloadManifest(Request $request)
+    { // Omniva-only, to receive manifest of the shipping item
+        $shippingData = $request->all();
+        $result = $this->service->sendApiRequest($request, endpointPath: 'shipping.download-manifest');
         return $result;
     }
 }
