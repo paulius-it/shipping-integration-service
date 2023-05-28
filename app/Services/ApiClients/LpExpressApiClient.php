@@ -8,14 +8,17 @@ use Illuminate\Http\Client\Response;
 
 class LpExpressApiClient
 {
-    private const baseApiUrl = 'https://api-manosiuntostst.post.lt/';
+    private const baseApiUrl = 'https://api-manosiuntostst.post.lt/api/v1/';
+    private string $endpoint;
     private string $provider;
     private string $accessToken;
+    private string $type;
     public Response $apiCallResult;
     private bool $successful = false;
-    private string $authServiceEndpoint = '127.0.0.1:8002/api';
+    private string $authServiceEndpoint = '127.0.0.1:8000/api';
     private bool $shouldAuthenticate = false;
-    private string $requestPath;
+    private string $uri;
+    private array $headers = [];
 
     public function __construct()
     {
@@ -24,12 +27,12 @@ class LpExpressApiClient
 
     public function authorizeClient(): self
     {
-        try {
-            $response = Http::get($this->authServiceEndpoint . '/get-api-credentials', [
-                'provider' => $this->provider,
-            ]);
-            $this->accessToken = $response->json('lp_express_access_token') ?? '';
-        } catch (\Exception $e) {
+        $response = Http::get($this->authServiceEndpoint . '/get-api-credentials', [
+            'provider' => $this->provider,
+        ]);
+        $this->accessToken = $response->json('lp_express_access_token') ?? '';
+
+        if (!$this->accessToken) {
             $this->shouldAuthenticate = true;
         }
 
@@ -41,17 +44,11 @@ class LpExpressApiClient
                     'cache' => true,
                 ]);
                 $response = $response->json();
-                dd($response);
                 $this->accessToken = $response['lp_api_response']['access_token'];
-                dd($this->accessToken);
                 $this->shouldAuthenticate = false;
                 $this->successful = true;
             } catch (\Exception $e) {
-                $this->errors->add('Failed to authenticate provider {$this->provider}!');
-            }
-
-            if ($this->errors->count() > 0) {
-                $this->successful = false;
+                throw new LpExpressAPIException('Unsupported type!');
             }
         }
         return $this;
@@ -65,65 +62,23 @@ class LpExpressApiClient
      * @return $this
      */
     public function processRequest(
-        ?string $type = null,
-        ?string $requestPath = null,
+        ?string $method = null,
+        ?string $uri = null,
         array $requestData,
         bool $log = false
     ): Response {
         $this->authorizeClient();
-
-        $url = self::baseApiUrl . $requestPath;
-
+        $this->endpoint = self::baseApiUrl . $uri;
+        $this->headers = ['Authorization: Bearer ' . $this->accessToken]; // Not needed i using Laravel's default HTTP client
         try {
-            switch ($type) {
-                case 'get':
-                    $this->apiCallResult = Http::withToken($this->accessToken)
-                        ->get($url, $requestData);
-                    break;
-                case 'post':
-                    $this->apiCallResult = Http::withToken($this->accessToken)
-                        ->post($url, $requestData);
-                    break;
-                case 'delete':
-                    $this->apiCallResult = Http::withToken($this->accessToken)
-                        ->delete($url, $requestData);
-                    break;
-                case 'put':
-                    $this->apiCallResult = Http::withToken($this->accessToken)
-                        ->put($url, $requestData);
-                    break;
-                default:
-                    throw new LpExpressAPIException('Unsupported tyupe!');
-            }
+            $this->apiCallResult = Http::withToken($this->accessToken)
+                ->$method($this->endpoint, $requestData);
         } catch (\Exception $e) {
-            throw new LpExpressAPIException('Api call failed: ' . $e->getMessage());
+            $this->apiCallResult = response()->json([
+                'errors' => $e->getMessage(),
+            ], 400);
         }
 
         return $this->apiCallResult;
-    }
-
-
-    public function creatShippingItem(array $data): array
-    {
-        $this->requestPath = 'api/v1/shipping/';
-
-        $this->processRequest(
-            type: $data['request_type'],
-            requestData: $data['request_data']
-        );
-
-        if ($this->errors->count() > 0) {
-            $response = [
-                'success' => false,
-                'errors' => $this->errors?->first(),
-            ];
-
-            return $response;
-        }
-        $response = [
-            'success' => true,
-            'message' => $this->apiCallResult,
-        ];
-        return $response;
     }
 }

@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
+Route::get('shipping/create', [App\Http\Controllers\ShippingIntegrationController::class, 'createShipping']);
+route::get('/test', [App\Http\Controllers\ShippingIntegrationController::class, 'createShipping']);
+Route::get('shipping/update', [App\Http\Controllers\ShippingIntegrationController::class, 'updateShipping']);
+Route::get('shipping/get', [App\Http\Controllers\ShippingIntegrationController::class, 'getShipping']);
+Route::get('shipping/delete', [App\Http\Controllers\ShippingIntegrationController::class, 'deleteShipping']);
+Route::get('shipping/track', [App\Http\Controllers\ShippingIntegrationController::class, 'shippingTracking']);
+Route::get('shipping/call-courier', [App\Http\Controllers\ShippingIntegrationController::class, 'callCourier']);
+Route::get('shipping/download-labels', [App\Http\Controllers\ShippingIntegrationController::class, 'downloadLabels']);
+Route::get('shipping/download-manifest', [App\Http\Controllers\ShippingIntegrationController::class, 'downloadManifest']);
